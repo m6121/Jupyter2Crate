@@ -4,7 +4,7 @@ This repository contains the source code of a infrastructure-based approach to t
 
 **Note that this software is a research prototype and may contain bugs and errors, i.e., do not use this in production.**
 
-The approach has been used in order to create the RO-Crates at: TBD
+The approach has been used in order to create the RO-Crates at: https://github.com/SFB-ELAINE/Ca-imaging-RO-Crate
 
 The approach is described in full detail in this article:
 
@@ -22,7 +22,11 @@ In order to reference this software, please consider the information in the [CIT
 
 ### Software Requirements
 
-....
+Installation of the python package is required, e.g. by installing via pip:
+
+```bash
+pip install git+https://github.com/m6121/Jupyter2Crate.git
+```
 
 ### Running
 
