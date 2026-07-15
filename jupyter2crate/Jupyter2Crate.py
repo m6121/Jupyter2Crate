@@ -14,6 +14,7 @@ from datetime import datetime
 from pathlib import Path
 from urllib import parse
 
+from provbook.notebook_rdf.__main__ import app as provbook_rdf
 from rdflib import BNode, Graph, Literal, Namespace, URIRef
 from rdflib.namespace import FOAF, OWL, RDF, RDFS, XSD
 
@@ -48,6 +49,8 @@ class Jupyter2Crate:
         # self.graph.bind('wd', 'https://www.wikidata.org/entity/')
         self.graph.bind('prov', 'http://www.w3.org/ns/prov#')
         self.graph.bind('obo', 'http://purl.obolibrary.org/obo/')
+        self.graph.bind('repr', 'https://w3id.org/reproduceme#')
+        self.graph.bind('p-plan', 'http://purl.org/net/p-plan/#')
 
     def _get_xsd_type_for_number(self, number):
         try:
@@ -75,10 +78,11 @@ class Jupyter2Crate:
     def _write_notebook(self):
         filename = os.path.basename(self.nb_path)
         notebook_path = os.path.join(self.tempfolder, 'Notebook')
+        self.nb_path_target = os.path.join(notebook_path, filename)
         Jupyter2Crate.create_folder_if_not_exists(notebook_path)
 
-        self.log.debug('Copying Jupyter Notebook file to "%s"' % (os.path.join(notebook_path, filename)))
-        shutil.copyfile(self.nb_path, os.path.join(notebook_path, filename))
+        self.log.debug('Copying Jupyter Notebook file to "%s"' % (self.nb_path_target))
+        shutil.copyfile(self.nb_path, self.nb_path_target)
 
     def _add_parameter_nodes(self, usage_node_id, value_specification, label, value, unit):
         par_node_id = BNode()
@@ -98,11 +102,26 @@ class Jupyter2Crate:
 
 
     def create_model(self):
+        self._call_provbook()
         self._model_nb()
         self._model_nb_cells()
         self._model_rocrate_base()
 
         return self.graph
+
+    def _call_provbook(self):
+        self.log.debug('Calling provbook for "%s"' % (self.nb_path_target))
+        old_arguments = sys.argv[:]
+        sys.argv = [
+            'notebook_rdf',
+            self.nb_path_target
+        ]
+        provbook_rdf()
+        sys.argv = old_arguments
+
+        # load provbook graph
+        self.log.debug('Loading provbook graph')
+        self.graph.parse(self.nb_path_target.replace('.ipynb', '.ttl'))
 
     def _model_nb(self):
         self.graph.add((
@@ -135,6 +154,35 @@ class Jupyter2Crate:
             URIRef('hasPart'),
             self.nb_id
         ))
+
+        # map notebook to corresponding provbook node
+        self.log.debug('Mapping notebook entity to provbook node')
+        nb_name, _ = os.path.splitext(os.path.basename(self.nb_path))
+        provbook_name = ''.join(c for c in nb_name if c.isalnum())
+        self.graph.add((
+            self.nb_id,
+            URIRef('owl:sameAs'),
+            URIRef('repr:%s' % (provbook_name))
+        ))
+
+        # map activity to corresponding provbook activities
+        self.log.debug('Mapping notebook activity to provbook activities')
+        nb_activity_query = """
+            SELECT DISTINCT ?cellname
+            WHERE {
+                ?cellname rdf:type p-plan:Step .
+            }
+        """
+
+        nb_activity_results = self.graph.query(nb_activity_query)
+        for row in nb_activity_results:
+            self.log.debug('Found provbook activity "%s"' % (row.cellname))
+            self.graph.add((
+                self.id_generator.getNotebookActivity(),
+                URIRef('hasPart'),
+                row.cellname
+            ))
+
 
     def _model_input_parameters(self, parameter, usage_node_id):
         # FREQUENCY
@@ -221,11 +269,11 @@ class Jupyter2Crate:
                                 continue
 
                             file_path = match.group(2).strip()
-                            crate_file_path = os.path.join("Data", re.sub(r'^/', '', file_path))
+                            crate_file_path = os.path.join('Data', re.sub(r'^/', '', file_path))
                             crate_file_path_abs = os.path.join(self.tempfolder, crate_file_path)
                             # copy file
                             Jupyter2Crate.create_folder_if_not_exists(os.path.dirname(crate_file_path_abs), parents=True)
-                            shutil.copy(file_path, os.path.join(self.tempfolder, crate_file_path))
+                            shutil.copyfile(file_path, os.path.join(self.tempfolder, crate_file_path))
 
                             self.graph.add((
                                 self.id_generator.getFile(crate_file_path),
@@ -272,8 +320,27 @@ class Jupyter2Crate:
                     self.graph.add((cell_id, RDF.type, URIRef('prov:Entity')))
                     self.graph.add((cell_id, RDFS.label, Literal(str(cell['outputs']), datatype=XSD.string)))
 
+                    # search corresponding provbook cell to link accordingly
+                    self.log.debug('Map notebook output entity to provbook cell')
+                    nb_output_query = """
+                        SELECT DISTINCT ?outputname
+                        WHERE {
+                            ?cellname p-plan:hasOutputVar ?outputname .
+                            ?cellname rdf:type p-plan:Step .
+                            ?cellname p-plan:hasInputVar ?source .
+                            ?source rdf:value \"\"\"%s\"\"\" .
+                        }
+                    """ % (cell['source'])
+                    self.log.debug("Query: %s" % (nb_output_query))
 
-
+                    nb_output_results = self.graph.query(nb_output_query)
+                    for row in nb_output_results:
+                        self.log.debug('Found provbook cell output "%s"' % (row.outputname))
+                        self.graph.add((
+                            cell_id,
+                            URIRef('p-plan:correspondsToVariable'),
+                            row.outputname
+                        ))
 
     def _model_rocrate_base(self):
         graph_base = URIRef('ro-crate-metadata.json')

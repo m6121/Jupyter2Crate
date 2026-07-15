@@ -3,5 +3,6 @@ name = "jupyter2crate"
 version = "1.0.0"
 dependencies = [
     "rdflib~=7.6.0",
-    "nbformat~=5.10"
+    "nbformat~=5.10",
+    "provbook~=1.1"
 ]
