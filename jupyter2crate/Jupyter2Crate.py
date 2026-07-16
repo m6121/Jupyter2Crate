@@ -78,9 +78,7 @@ class Jupyter2Crate:
 
     def _write_notebook(self):
         filename = os.path.basename(self.nb_path)
-        notebook_path = os.path.join(self.tempfolder, 'Notebook')
-        self.nb_path_target = os.path.join(notebook_path, filename)
-        Jupyter2Crate.create_folder_if_not_exists(notebook_path)
+        self.nb_path_target = os.path.join(self.tempfolder, filename)
 
         self.log.debug('Copying Jupyter Notebook file to "%s"' % (self.nb_path_target))
         shutil.copyfile(self.nb_path, self.nb_path_target)
@@ -123,6 +121,13 @@ class Jupyter2Crate:
         # load provbook graph
         self.log.debug('Loading provbook graph')
         self.graph.parse(self.nb_path_target.replace('.ipynb', '.ttl'))
+
+        # add to ro crate
+        self.graph.add((
+            self.id_generator.getDataset(),
+            URIRef('hasPart'),
+            self.id_generator.getFile(os.path.basename(self.nb_path_target.replace('.ipynb', '.ttl')))
+        ))
 
     def _model_nb(self):
         self.graph.add((
@@ -338,7 +343,7 @@ class Jupyter2Crate:
                                 continue
 
                             file_path = match.group(2).strip()
-                            crate_file_path = os.path.join('Data', re.sub(r'^/', '', file_path))
+                            crate_file_path = re.sub(r'^/', '', file_path)
                             crate_file_path_abs = os.path.join(self.tempfolder, crate_file_path)
                             # copy file
                             Jupyter2Crate.create_folder_if_not_exists(os.path.dirname(crate_file_path_abs), parents=True)

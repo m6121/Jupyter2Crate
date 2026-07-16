@@ -30,9 +30,7 @@ class IDGenerator:
         return URIRef('./')
 
     def getNotebook(self, nb_file):
-        nb_id = 'Notebook/%s' % (nb_file)
-
-        return self.getFile(nb_id)
+        return self.getFile(nb_file)
 
     def getNotebookActivity(self):
         return URIRef(self.nb_namespace['execution'])
