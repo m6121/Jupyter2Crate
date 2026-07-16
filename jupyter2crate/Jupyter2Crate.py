@@ -19,6 +19,7 @@ from rdflib import BNode, Graph, Literal, Namespace, URIRef
 from rdflib.namespace import FOAF, OWL, RDF, RDFS, XSD
 
 from .IDGenerator import IDGenerator
+from .Persons import persons, institutions
 
 class NBNotFound(Exception):
     pass
@@ -45,8 +46,8 @@ class Jupyter2Crate:
         self.graph.bind('@base', self.nb_namespace)
         self.graph.bind('@vocab', 'https://w3id.org/ro/crate/1.2/context#')
         # self.graph.bind('elaine', 'https://eln-provenance.elaine.uni-rostock.de/ontology/0.1/')
-        # self.graph.bind('foaf', FOAF)
-        # self.graph.bind('wd', 'https://www.wikidata.org/entity/')
+        self.graph.bind('foaf', FOAF)
+        self.graph.bind('gndo', 'https://d-nb.info/standards/elementset/gnd#')
         self.graph.bind('prov', 'http://www.w3.org/ns/prov#')
         self.graph.bind('obo', 'http://purl.obolibrary.org/obo/')
         self.graph.bind('repr', 'https://w3id.org/reproduceme#')
@@ -232,12 +233,80 @@ class Jupyter2Crate:
                 self.log.error('Voltage uses unknown unit: '+ voltage)
                 sys.exit(1)
 
+    def _model_researcher(self, researcher_name):
+        if persons.get(researcher_name):
+            researcher = persons.get(researcher_name)
+            organization = institutions.get(researcher['affiliation'])
+            organization_id = self.id_generator.getInstitution(
+                researcher['affiliation'],
+                organization
+            )
+            researcher_id = self.id_generator.getResearcher(researcher_name, researcher)
+
+            if (researcher_id, RDF.type, URIRef('prov:Person')) in self.graph:
+                return researcher_id, organization_id
+
+            if (organization_id, RDF.type, URIRef('prov:Organization')) not in self.graph:
+                self.graph.add((organization_id, RDF.type, URIRef('prov:Organization')))
+                self.graph.add((
+                    organization_id,
+                    URIRef('foaf:name'),
+                    Literal(organization['name'], lang='en')
+                ))
+
+            self.graph.add((researcher_id, RDF.type, URIRef('prov:Person')))
+            self.graph.add((
+                researcher_id,
+                URIRef('foaf:name'),
+                Literal('%s %s' % (researcher['givenName'], researcher['familyName']), \
+                    datatype=XSD.string)
+            ))
+            self.graph.add((
+                researcher_id,
+                URIRef('foaf:givenName'),
+                Literal(researcher['givenName'], datatype=XSD.string)
+            ))
+            self.graph.add((
+                researcher_id,
+                URIRef('foaf:familyName'),
+                Literal(researcher['familyName'], datatype=XSD.string)
+            ))
+            if researcher.get('email'):
+                self.graph.add((
+                    researcher_id,
+                    URIRef('email'),
+                    Literal(researcher['email'])
+                ))
+            self.graph.add((researcher_id, URIRef('gndo:affiliation'), organization_id))
+        else:
+            self.log.error('Could not find researcher name: "%s"' % (researcher_name))
+            sys.exit(1)
+
+        return researcher_id, organization_id
+
     def _model_nb_cells(self):
         self.log.debug('Modelling Jupyter Notebook "%s"' % (self.nb_path))
 
-        for cell in self.notebook.cells:
+        for i, cell in enumerate(self.notebook.cells):
             if cell['cell_type'] != 'code':
-                continue
+                if i == 0:
+                    # search for authors indicated by 'by' in the initial cell:
+                    author_string = re.search(r'by ([ a-zA-Z0-9äöüß^$,]+)', cell['source'].partition('\n')[0])
+                    if author_string:
+                        self.log.debug('Found author string: "%s"' % (author_string.group(1)))
+                        authors = re.split(r'[ ]*,[ ]*|[ ]*and[ ]*', author_string.group(1))
+                        for author in authors:
+                            self.log.debug('Found author: "%s"' % (author))
+                            # remove affiliation
+                            author = re.search(r'[ a-zA-Z0-9äöüß]+', author).group().lower()
+                            researcher_id, _ = self._model_researcher(author)
+                            self.graph.add((
+                                self.id_generator.getNotebookActivity(),
+                                URIRef('prov:wasAssociatedWith'),
+                                researcher_id
+                            ))
+                else:
+                    continue
 
             if cell['source'].startswith('#| prov:'):
                 self.log.debug('Found cell with provenance information: "%s"' % (cell['source']))

@@ -5,6 +5,27 @@ class IDGenerator:
         self.general_namespace = general_namespace
         self.nb_namespace = nb_namespace
 
+    def getResearcher(self, researcher_key, researcher):
+        if researcher.get('orcid'):
+            return URIRef(researcher['orcid'])
+
+        researcher_key = researcher_key.replace(' ', '_')
+        researcher_key = researcher_key.replace('ä', 'ae')
+        researcher_key = researcher_key.replace('ö', 'oe')
+        researcher_key = researcher_key.replace('ü', 'ue')
+        researcher_key = researcher_key.replace('ß', 'ss')
+        researcher_id = 'researcher/%s' % (researcher_key)
+
+        return URIRef(self.general_namespace[researcher_id])
+
+    def getInstitution(self, institution_key, institution):
+        if institution.get('ror'):
+            return URIRef(institution.get('ror'))
+
+        institution_id = 'institution/%s' % (institution_key)
+
+        return URIRef(self.general_namespace[institution_id])
+
     def getDataset(self):
         return URIRef('./')
 
