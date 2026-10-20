@@ -87,7 +87,7 @@ class Jupyter2Crate:
         par_node_id = BNode()
         self.graph.add((par_node_id, RDF.type, value_specification))
         self.graph.add((par_node_id, RDFS.label, label))
-        self.graph.add((par_node_id, URIRef('value'), value))
+        self.graph.add((par_node_id, URIRef('prov:value'), value))
         self.graph.add((
             par_node_id,
             URIRef('http://purl.obolibrary.org/obo/IAO_0000039'), # has measurement unit label
