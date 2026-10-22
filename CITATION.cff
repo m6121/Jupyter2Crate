@@ -1,0 +1,50 @@
+cff-version: 1.2.0
+title: Jupyter2Crate
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Max
+    family-names: Schröder
+    affiliation: 'University Library, University of Rostock, Rostock'
+    orcid: 'https://orcid.org/0000-0003-1522-494X'
+  - given-names: Sascha
+    family-names: Genehr
+    affiliation: >-
+      Data Science and Machine Learning Group, Wismar
+      University of Applied Sciences, Wismar
+    orcid: 'https://orcid.org/0000-0002-1702-6878'
+  - given-names: Tanja
+    family-names: Auge
+    affiliation: >-
+      Faculty for Informatics and Data Science, University
+      of Regensburg, Regensburg
+    orcid: 'https://orcid.org/0009-0006-2150-9713'
+  - given-names: Susanne
+    family-names: Staehlke
+    affiliation: >-
+      Department of Cell Biology, Rostock University Medical
+      Center, Rostock
+    orcid: 'https://orcid.org/0000-0002-0251-8263'
+  - given-names: Meike
+    family-names: Klettke
+    affiliation: >-
+      Faculty for Informatics and Data Science, University
+      of Regensburg, Regensburg
+    orcid: 'https://orcid.org/0000-0003-0551-8389'
+  - given-names: Frank
+    family-names: Krüger
+    affiliation: >-
+      Data Science and Machine Learning Group, Wismar
+      University of Applied Sciences, Wismar
+    orcid: 'https://orcid.org/0000-0002-7925-3363'
+repository-code: 'https://github.com/m6121/Jupyter2Crate'
+abstract: >-
+  This repository contains the source code of an
+  infrastructure-based approach to transfer Jupyter
+  Notebooks into a Research Object Crates (RO-Crates) bundle
+  whereas the semantic model represents retrospective
+  provenance about the notebook.
+license: MIT
+version: 1.0.0
